@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rest Sea Resort PKG Calculator v1.0.7</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+        :root { --primary-color: #004d40; --accent-color: #009688; --bg-color: #f0f4f4; --card-bg: #ffffff; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-color); padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 750px; width: 100%; background: var(--card-bg); padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .header { text-align: center; border-bottom: 2px solid var(--primary-color); margin-bottom: 25px; padding-bottom: 10px; }
+        .lang-switch { text-align: right; margin-bottom: 15px; }
+        .btn-lang { background: var(--accent-color); color: white; border: none; padding: 6px 18px; border-radius: 20px; cursor: pointer; font-weight: 600; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--primary-color); }
+        select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .btn-calc { width: 100%; background: var(--primary-color); color: white; border: none; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 20px; }
+        #result-area { margin-top: 25px; padding: 20px; background: #f9f9f9; border-left: 5px solid var(--accent-color); border-radius: 5px; white-space: pre-line; display: none; font-size: 1rem; line-height: 1.6; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="lang-switch"><button class="btn-lang" onclick="toggleLang()" id="btn-lang">English</button></div>
+    <div class="header">
+        <h1 id="title-main">Rest Sea Resort PKG Calculator</h1>
+        <p>Version 1.0.7 (Dominant Season by Days Logic)</p>
+    </div>
+    <div class="form-group">
+        <label id="lbl-room">ไทป์ห้องพัก</label>
+        <select id="roomType">
+            <option value="Beachfront Pool Villa">Beachfront Pool Villa</option>
+            <option value="Deluxe Pool Villa">Deluxe Pool Villa</option>
+            <option value="Deluxe Villa">Deluxe Villa</option>
+            <option value="Twin Villa">Twin Villa</option>
+        </select>
+    </div>
+    <div class="grid-inputs">
+        <div class="form-group"><label id="lbl-date">วันเข้าพัก</label><input type="date" id="checkInDate"></div>
+        <div class="form-group">
+            <label id="lbl-pkg">ประเภทการเข้าพัก</label>
+            <select id="pkgType">
+                <option value="3D2N">3 วัน 2 คืน (3D2N)</option>
+                <option value="4D3N">4 วัน 3 คืน (4D3N)</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-group"><label id="lbl-adult">Additional Person (ผู้ใหญ่อายุ 10 ปีขึ้นไป)</label><input type="number" id="extraAdult" value="0" min="0"></div>
+    <div class="grid-inputs">
+        <div class="form-group"><label id="lbl-child1">เด็ก 4 - 9 ปี (รับเตียงเสริม)</label><input type="number" id="childExtraBed" value="0" min="0"></div>
+        <div class="form-group"><label id="lbl-child2">เด็ก 4 - 9 ปี (ไม่รับเตียงเสริม)</label><input type="number" id="childNoBed" value="0" min="0"></div>
+    </div>
+    <button class="btn-calc" onclick="calculate()" id="btn-calc">คำนวณและคัดลอกข้อความ</button>
+    <div id="result-area"></div>
+</div>
+
+<script>
+    let currentLang = 'th';
+
+    const rates = {
+        'High': { 'Beachfront Pool Villa': 10300, 'Deluxe Pool Villa': 10000, 'Deluxe Villa': 8500, 'Twin Villa': 7500, 'Adult': 6000, 'ChildBed': 4000, 'ChildNoBed': 3000, 'Peak': 1000 },
+        'Low': { 'Beachfront Pool Villa': 7800, 'Deluxe Pool Villa': 7500, 'Deluxe Villa': 6500, 'Twin Villa': 6000, 'Adult': 5000, 'ChildBed': 3500, 'ChildNoBed': 2500, 'Peak': 1000 },
+        'Green': { 'Beachfront Pool Villa': 9100, 'Deluxe Pool Villa': 8800, 'Deluxe Villa': 7400, 'Twin Villa': 6800, 'Adult': 5500, 'ChildBed': 3750, 'ChildNoBed': 2750, 'Peak': 1000 }
+    };
+    const extraNightRates = {
+        'High': { 'Beachfront Pool Villa': 4500, 'Deluxe Pool Villa': 4200, 'Deluxe Villa': 3300, 'Twin Villa': 2900, 'Adult': 2500, 'Peak': 500 },
+        'Low': { 'Beachfront Pool Villa': 3300, 'Deluxe Pool Villa': 3000, 'Deluxe Villa': 2400, 'Twin Villa': 2000, 'Adult': 1500, 'Peak': 500 },
+        'Green': { 'Beachfront Pool Villa': 3800, 'Deluxe Pool Villa': 3500, 'Deluxe Villa': 2800, 'Twin Villa': 2500, 'Adult': 2000, 'Peak': 500 }
+    };
+
+    function toggleLang() {
+        currentLang = currentLang === 'th' ? 'en' : 'th';
+        document.getElementById('btn-lang').innerText = currentLang === 'th' ? 'English' : 'ไทย';
+        updateUI();
+    }
+
+    function updateUI() {
+        const ui = {
+            th: { room: "ไทป์ห้องพัก", date: "วันเข้าพัก", pkg: "ประเภทการเข้าพัก", adult: "Additional Person (ผู้ใหญ่อายุ 10 ปีขึ้นไป)", child1: "เด็ก 4 - 9 ปี (รับเตียงเสริม)", child2: "เด็ก 4 - 9 ปี (ไม่รับเตียงเสริม)", calc: "คำนวณและคัดลอกข้อความ" },
+            en: { room: "Room Type", date: "Check-in Date", pkg: "Stay Type", adult: "Additional Person (Adults 10+ yrs)", child1: "Child 4-9 yrs (Extra Bed)", child2: "Child 4-9 yrs (No Bed)", calc: "Calculate & Copy Text" }
+        };
+        const lang = ui[currentLang];
+        Object.keys(lang).forEach(key => { 
+            const el = document.getElementById(`lbl-${key}`) || document.getElementById(`btn-${key}`); 
+            if(el) el.innerText = lang[key]; 
+        });
+    }
+
+    function getSeasonForDate(dateObj) {
+        const m = dateObj.getMonth() + 1;
+        const d = dateObj.getDate();
+        if (m === 12 || (m >= 1 && m <= 5)) return 'High';
+        if ((m >= 6 && m <= 9) || (m === 10 && d <= 15)) return 'Low';
+        if ((m === 10 && d >= 16) || m === 11) return 'Green';
+        return 'High';
+    }
+
+    function isPeakDate(dateObj) {
+        const m = dateObj.getMonth() + 1;
+        const d = dateObj.getDate();
+        if ((m === 12 && d >= 20) || (m === 1 && d <= 10)) return true;
+        if (m === 4 && d >= 12 && d <= 16) return true;
+        return false;
+    }
+
+    function calculate() {
+        const room = document.getElementById('roomType').value;
+        const dateInput = document.getElementById('checkInDate').value;
+        if(!dateInput) { alert(currentLang === 'th' ? "กรุณาเลือกวันเข้าพัก" : "Please select check-in date"); return; }
+        
+        const pkg = document.getElementById('pkgType').value;
+        const extraAdult = parseInt(document.getElementById('extraAdult').value) || 0;
+        const childBed = parseInt(document.getElementById('childExtraBed').value) || 0;
+        const childNoBed = parseInt(document.getElementById('childNoBed').value) || 0;
+        const totalGuests = 2 + extraAdult + childBed + childNoBed;
+        const nights = pkg === "3D2N" ? 2 : 3;
+        
+        // นับ "จำนวนวันทั้งหมด" (รวมวันเช็คเอาท์) เพื่อหา Season ที่มีจำนวนวันเยอะที่สุด
+        const totalDays = nights + 1; 
+        const checkInObj = new Date(dateInput);
+        let seasonCounts = { 'High': 0, 'Low': 0, 'Green': 0 };
+
+        for (let i = 0; i < totalDays; i++) {
+            let curDate = new Date(checkInObj);
+            curDate.setDate(checkInObj.getDate() + i);
+            seasonCounts[getSeasonForDate(curDate)]++;
+        }
+
+        let dominantSeason = getSeasonForDate(checkInObj);
+        let maxCount = 0;
+        for (const [s, count] of Object.entries(seasonCounts)) {
+            if (count > maxCount) { 
+                maxCount = count; 
+                dominantSeason = s; 
+            }
+        }
+        
+        const season = dominantSeason;
+        const r = rates[season];
+        const enr = extraNightRates[season];
+
+        // Peak Logic: รายท่านต่อช่วงแพ็กเกจ (เช็คเฉพาะ "คืน" ที่เข้าพัก)
+        let hasPeakInMain = false;
+        for (let i = 0; i < 2; i++) { // คืนที่ 1 และ 2 ของแพ็กเกจ
+            let d = new Date(checkInObj); d.setDate(checkInObj.getDate() + i);
+            if (isPeakDate(d)) { hasPeakInMain = true; break; }
+        }
+        
+        let hasPeakInN3 = false;
+        if (pkg === "4D3N") {
+            let d3 = new Date(checkInObj); d3.setDate(checkInObj.getDate() + 2); // คืนที่ 3
+            if (isPeakDate(d3)) hasPeakInN3 = true;
+        }
+
+        let total = (r[room] * 2) + (extraAdult * r.Adult) + (childBed * r.ChildBed) + (childNoBed * r.ChildNoBed);
+        if (hasPeakInMain) total += (r.Peak * totalGuests);
+        
+        if (pkg === "4D3N") {
+            total += (enr[room] * 2) + (extraAdult * enr.Adult);
+            if (hasPeakInN3) total += (enr.Peak * totalGuests);
+        }
+
+        // Date formatting
+        const checkOutObj = new Date(checkInObj);
+        checkOutObj.setDate(checkInObj.getDate() + nights);
+        const thMonths = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+        const d1 = String(checkInObj.getDate()).padStart(2, '0');
+        const d2 = String(checkOutObj.getDate()).padStart(2, '0');
+        let dateRangeStr = "";
+
+        if(currentLang === 'th') {
+            const m1 = thMonths[checkInObj.getMonth()];
+            const y1 = checkInObj.getFullYear() + 543;
+            const m2 = thMonths[checkOutObj.getMonth()];
+            const y2 = checkOutObj.getFullYear() + 543;
+            dateRangeStr = (m1 === m2 && y1 === y2) ? `${d1} - ${d2} ${m1} พ.ศ. ${y1}` : `${d1} ${m1} พ.ศ. ${y1} - ${d2} ${m2} พ.ศ. ${y2}`;
+        } else {
+            const enOpt = { year: 'numeric', month: 'short', day: '2-digit' };
+            dateRangeStr = `${checkInObj.toLocaleDateString('en-US', enOpt)} - ${checkOutObj.toLocaleDateString('en-US', enOpt)}`;
+        }
+
+        // Result Text Assembly
+        let res = `Rest Sea Resort : Package ${pkg}\n`;
+        res += (currentLang === 'th' ? `ไทป์ห้องพัก : ` : `Room Type : `) + `${room}\n`;
+        res += (currentLang === 'th' ? `เข้าพัก : ` : `Stay : `) + `${dateRangeStr} (${season} Season) : ${r[room].toLocaleString()} x 2${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(r[room]*2).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        
+        if(extraAdult > 0) res += `+ ${currentLang === 'th' ? 'เสริม (ผู้ใหญ่อายุ 10 ปีขึ้นไป)' : 'Extra (Adult 10+ yrs)'} : ${r.Adult.toLocaleString()} x ${extraAdult}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(extraAdult * r.Adult).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        if(childBed > 0) res += `+ ${currentLang === 'th' ? 'เสริม (เด็ก 4 - 9 ปี รับเตียงเสริม)' : 'Extra (Child 4-9 yrs Extra Bed)'} : ${r.ChildBed.toLocaleString()} x ${childBed}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(childBed * r.ChildBed).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        if(childNoBed > 0) res += `+ ${currentLang === 'th' ? 'เสริม (เด็ก 4 - 9 ปี ไม่รับเตียงเสริม)' : 'Extra (Child 4-9 yrs No Bed)'} : ${r.ChildNoBed.toLocaleString()} x ${childNoBed}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(childNoBed * r.ChildNoBed).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        
+        if(hasPeakInMain) res += `+ Peak Period : ${r.Peak.toLocaleString()} x ${totalGuests}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(r.Peak * totalGuests).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        
+        if(pkg === "4D3N") {
+            res += (currentLang === 'th' ? `\n[เสริมคืนที่ 3]\n` : `\n[Extra 3rd Night]\n`);
+            res += `${enr[room].toLocaleString()} x 2${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(enr[room]*2).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+            if(extraAdult > 0) res += `+ ${currentLang === 'th' ? 'เสริม (ผู้ใหญ่อายุ 10 ปีขึ้นไป)' : 'Extra (Adult 10+ yrs)'} : ${enr.Adult.toLocaleString()} x ${extraAdult}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(extraAdult * enr.Adult).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+            if(hasPeakInN3) res += `+ Peak Period (N3) : ${enr.Peak.toLocaleString()} x ${totalGuests}${currentLang === 'th' ? 'ท่าน' : 'Persons'} = ${(enr.Peak * totalGuests).toLocaleString()} ${currentLang === 'th' ? 'บาท' : 'THB'}\n`;
+        }
+
+        res += (currentLang === 'th' ? `\nสิ่งที่จะได้รับภายในแพ็คเกจ\n` : `\nPackage Inclusions:\n`);
+        const inclusions = [
+            { th: `- ตั๋วเรือเฟอร์รี่ ไป - กลับ (พร้อมรถรับส่งท่าเรือ - ที่พัก)`, en: `- Round-trip Ferry Tickets (inclusive of pier-resort transfer)` },
+            { th: `- ทริปดำน้ำแบบ Join Trip โซนเกาะแรด (งดดำน้ำช่วง Low Season)`, en: `- Join Trip Snorkeling at Koh Rad Zone (Not available in Low Season)` },
+            { th: `- ทริปน้ำตกคลองเจ้า (เฉพาะช่วง Low Season)`, en: `- Klong Chao Waterfall Trip (Low Season only)` },
+            { th: `- กิจกรรมทางน้ำภายในรีสอร์ท (เรือคายัค , Sup Board , Snorkeling)`, en: `- Water Activities at the resort (Kayak, Sup Board, Snorkeling)` },
+            { th: `- Set อาหาร ${pkg === '3D2N' ? '6' : '9'} มื้อ`, en: `- ${pkg === '3D2N' ? '6' : '9'} Meals Set` }
+        ];
+        inclusions.forEach(item => res += (currentLang === 'th' ? item.th : item.en) + `\n`);
+
+        res += (currentLang === 'th' ? `\nยอดชำระรวม ${total.toLocaleString()} บาท สำหรับ ${totalGuests} ท่าน` : `\nTotal Amount ${total.toLocaleString()} THB for ${totalGuests} Persons`);
+        
+        document.getElementById('result-area').innerText = res;
+        document.getElementById('result-area').style.display = 'block';
+        navigator.clipboard.writeText(res);
+    }
+</script>
+</body>
+</html>
